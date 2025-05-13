@@ -1,52 +1,30 @@
 import unreal
 
-ENUM_PATH_ROOT = ""
-ENUM_NAME_TO_UPDATE = ""
-OPTIONS_TO_ADD = []
-OPTIONS_TO_REMOVE = []
+def add_enum_entry(enum_path, new_entry_name):
+    """Adds a new entry to the specified enum asset."""
 
-def update_existing_enum(enum_path_root, enum_name_to_update, options_to_add, options_to_remove):
-    full_asset_path = f"{enum_path_root}/{enum_name_to_update}"
-    existing_enum = unreal.load_object(None, full_asset_path)
-    if not existing_enum:
-        unreal.log_error(f"Error: UEnum asset not found at '{full_asset_path}'.")
-        return None
-    existing_enums = existing_enum.get_enums()
-    existing_enum_names = [name for name, _ in existing_enums]
-    modified = False
-    for option_to_remove in options_to_remove:
-        name_to_remove = unreal.Name(option_to_remove)
-        found = False
-        updated_enums = []
-        for name, value in existing_enums:
-            if name == name_to_remove:
-                found = True
-                modified = True
-                unreal.log(f"Removed option '{option_to_remove}' from '{enum_name_to_update}'.")
-            else:
-                updated_enums.append((name, value))
-        existing_enums = updated_enums
-        if not found:
-            unreal.log_warning(f"Warning: Option '{option_to_remove}' not found in '{enum_name_to_update}'.")
-    next_value = 0
-    if existing_enums:
-        next_value = max(value for _, value in existing_enums) + 1
-    for option_to_add in options_to_add:
-        name_to_add = unreal.Name(option_to_add)
-        if name_to_add not in existing_enum_names:
-            existing_enums.append((name_to_add, next_value))
-            existing_enum_names.append(option_to_add)
-            next_value += 1
-            modified = True
-            unreal.log(f"Added option '{option_to_add}' to '{enum_name_to_update}'.")
-        else:
-            unreal.log_warning(f"Warning: Option '{option_to_add}' already exists in '{enum_name_to_update}'.")
-    if modified:
-        existing_enum.set_enums(existing_enums)
-        unreal.EditorAssetLibrary.save_loaded_asset(existing_enum)
-        unreal.log(f"Successfully updated UEnum asset at: {full_asset_path}.")
-    else:
-        unreal.log(f"UEnum asset at: {full_asset_path} was not modified.")
-    return existing_enum
+    enum_asset = unreal.load_object(None, enum_path)
+    if not enum_asset:
+        unreal.log_error(f"Failed to load enum at path: {enum_path}")
+        return
 
-update_existing_enum(ENUM_PATH_ROOT, ENUM_NAME_TO_UPDATE, OPTIONS_TO_ADD, OPTIONS_TO_REMOVE)
+    enum_data = enum_asset.get_editor_property("values")
+    new_entry_value = len(enum_data)
+    new_entry = (new_entry_name, new_entry_value)
+
+    # Check if the new entry already exists
+    for key, value in enum_data:
+        if key == new_entry_name:
+            unreal.log_warning(f"Enum entry '{new_entry_name}' already exists.")
+            return
+    
+    enum_data.append(new_entry)
+    enum_asset.set_editor_property("values", enum_data)
+    unreal.EditorAssetLibrary.save_loaded_asset(enum_asset)
+    unreal.EditorAssetLibrary.refresh_content_browser()
+    unreal.log(f"Added '{new_entry_name}' to enum '{enum_path}'")
+
+# Example usage
+enum_path = "/Game/MyFolder/MyEnum" # Replace with your enum's path
+new_entry_name = "NewEnumValue"
+add_enum_entry(enum_path, new_entry_name)
